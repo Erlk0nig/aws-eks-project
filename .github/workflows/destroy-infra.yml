@@ -1,0 +1,66 @@
+name: Destroy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      workspace:
+        description: "Select our Terraform workspace to use"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+
+jobs:
+  terraform:
+    name: 'Terraform Destroy'
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the repository
+    
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Step 2: Set up Terraform
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.16.0 
+        
+    # Step 3: Configure AWS credentials
+    
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    # Step 4: Initialize Terraform
+    
+    - name: Terraform Init
+      run: terraform init -backend-config="bucket=${{ secrets.TF_BACKEND_S3_BUCKET_NAME }}" -backend-config="key=${{ secrets.TF_BACKEND_S3_BUCKET_KEY }}" -backend-config="region=${{ secrets.TF_BACKEND_S3_BUCKET_REGION }}" 
+
+    # Step 5: ceck Terraform version
+    - name: Terraform Format Check
+      run: terraform fmt -recursive  
+    # Step 6: Validate Terraform configuration
+    - name: Terraform Validate
+      run: terraform validate    
+
+  # step 7  : Select Workspace
+    - name: Select Workspace
+      run: |
+        terraform workspace select ${{ github.event.inputs.workspace }} || terraform workspace new ${{ github.event.inputs.workspace }}
+
+    # Step 8: Plan Terraform changes
+    
+    - name: Terraform plan destroy
+      run: terraform plan -destroy
+
+    # Step 9: Apply Terraform changes
+    
+    - name: Terraform destroy
+      run: terraform destroy -auto-approve
