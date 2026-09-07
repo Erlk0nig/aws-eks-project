@@ -27,4 +27,12 @@ locals {
     }
     if rule["sg_name"] == "private_sg" && rule["rule_type"] == "ingress"
   }
+  devops_users = data.aws_iam_group.admins.users[*].arn
+  eks_access_entries_devops = flatten([
+    for user_arn in local.devops_users : {
+      cluster_name  = "${var.fullname}-${local.env}-eks-cluster"
+      principal_arn = user_arn
+    }
+  ])
 }
+

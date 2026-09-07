@@ -21,3 +21,7 @@ variable "private_subnets" {
         name = string
     }))
 }
+
+variable "tags" {
+  type = map(string)
+}

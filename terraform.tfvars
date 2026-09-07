@@ -1,6 +1,9 @@
 fullname = "aziz-soudani"
 cidr_block = "10.0.0.0/16"
-
+tags = {
+  "project" : "azure-eks-project",
+  "owner"   : "firstname-lastname"
+}
 public_subnets = [
   {
     cidr_block = "10.0.1.0/24"

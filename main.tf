@@ -8,3 +8,18 @@ module "network" {
   fullname                         = var.fullname
   env                              = local.env
 }
+
+data "aws_iam_group" "admins" {
+  group_name = "admins"
+}
+
+module "eks" {
+  source = "./modules/eks"
+
+  env                    = local.env
+  fullname               = var.fullname
+  tags                   = var.tags
+  private_subnet_ids     = module.network.private_subnet_ids
+  eks_access_entries_devops = local.eks_access_entries_devops
+  depends_on = [module.network, data.aws_iam_group.admins]
+}  
