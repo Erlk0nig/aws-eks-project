@@ -113,74 +113,6 @@ resource "aws_route_table_association" "private" {
 }
 
 
-# Public Security Group 
-resource "aws_security_group" "public" {
-  name        = "aziz-soudani-${terraform.workspace}-public-sg"
-  description = "Allow HTTP, HTTPS, and SSH from the internet"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "public-sg"
-  }
-}
-
-# Private Security Group
-resource "aws_security_group" "private" {
-  name        = "aziz-soudani-${terraform.workspace}-private-sg"
-  description = "Allow traffic only from the public security group"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description     = "All traffic from public SG"
-    from_port       = 0
-    to_port         = 0
-    protocol        = "-1"
-    security_groups = [aws_security_group.public.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "private-sg"
-  }
-}
-
 # Security Groups
 resource "aws_security_group" "public_sg" {
   name        = "public-sg"
@@ -188,7 +120,7 @@ resource "aws_security_group" "public_sg" {
   vpc_id      = aws_vpc.main.id
 
   tags = {
-    Name = "public-sg"
+    Name = "${var.fullname}-${local.env}-public-sg"
   }
   depends_on = [ aws_subnet.public ]
 }
@@ -198,7 +130,7 @@ resource "aws_security_group" "private_sg" {
   description = "Allow private access"
   vpc_id      = aws_vpc.main.id  
   tags = {
-    Name = "private-sg"
+    Name = "${var.fullname}-${local.env}-private-sg"
   }
   depends_on = [ aws_subnet.private ]
 }
