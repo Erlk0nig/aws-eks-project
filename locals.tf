@@ -1,5 +1,5 @@
 locals {
-   env = terraform.workspace
+  env = terraform.workspace
   sg_rules = csvdecode(file("./sg_rules.csv"))
 
   public_subnet_sg_inbound_rules = {
