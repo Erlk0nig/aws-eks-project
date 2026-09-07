@@ -1,7 +1,7 @@
 resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block = var.cidr_block
   tags = {
-    Name = "aziz-soudani-${terraform.workspace}-vpc"
+    Name = "${var.fullname}-${local.env}-vpc"
   }
 }
 
@@ -10,77 +10,65 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = "aziz-soudani-${terraform.workspace}-igw"
+    Name = "${var.fullname}-${local.env}-igw"
   }
+  depends_on = [aws_vpc.main]
 }
 
-# Public Subnets
-resource "aws_subnet" "public_1" {
+# 2 Public Subnets
+resource "aws_subnet" "public" {
+  count = length(var.public_subnets)
   vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.1.0/24"
+  cidr_block        = var.public_subnets[count.index].cidr_block
   map_public_ip_on_launch = true
-  availability_zone = "us-east-1a"
-
+  availability_zone = var.public_subnets[count.index].availability_zone
   tags = {
-    Name = "aziz-soudani-${terraform.workspace}-public-subnet-1"
+    Name = "${var.fullname}-${local.env}-${var.public_subnets[count.index].name}"
   }
+  depends_on = [aws_vpc.main]
 }
 
-resource "aws_subnet" "public_2" {
+
+# 2 Private Subnets
+resource "aws_subnet" "private" {
+  count = length(var.private_subnets)
   vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.2.0/24"
-  map_public_ip_on_launch = true
-  availability_zone = "us-east-1b"
-
+  cidr_block        = var.private_subnets[count.index].cidr_block
+  map_public_ip_on_launch = false
+  availability_zone = var.private_subnets[count.index].availability_zone
   tags = {
-    Name = "aziz-soudani-${terraform.workspace}-public-subnet-2"
+    Name = "${var.fullname}-${local.env}-${var.private_subnets[count.index].name}"
   }
+  depends_on = [aws_vpc.main]
 }
 
-# Private Subnets
-resource "aws_subnet" "private_1" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.11.0/24"
-  availability_zone = "us-east-1a"
-
-  tags = {
-    Name = "aziz-soudani-${terraform.workspace}-private-subnet-1"
-  }
-}
-
-resource "aws_subnet" "private_2" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.12.0/24"
-  availability_zone = "us-east-1b"
-
-  tags = {
-    Name = "aziz-soudani-${terraform.workspace}-private-subnet-2"
-  }
-}
 
 # ELastic IP for NAT Gateway
 resource "aws_eip" "nat" {
+  count = length(var.private_subnets)
   domain = "vpc"
-
   tags = {
-    Name = "nat-eip"
+    Name = "${var.fullname}-${local.env}-eip-${count.index + 1}"
   }
+  depends_on = [aws_internet_gateway.main]
 }
 
 # NAT Gateway
 resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public_1.id
+  count = length(var.private_subnets)
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
 
   tags = {
-    Name = "aziz-soudani-${terraform.workspace}-nat-gw"
+    Name = "${var.fullname}-${local.env}-nat-gw-${count.index + 1}"
   }
 
-  depends_on = [aws_internet_gateway.main]
+  depends_on = [aws_subnet.public, aws_eip.nat]
 }
 
 # Public Route Tables
 resource "aws_route_table" "public" {
+  count = length(var.public_subnets)
   vpc_id = aws_vpc.main.id
 
   route {
@@ -89,43 +77,41 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name = "aziz-soudani-${terraform.workspace}-public-rt"
+    Name = "${var.fullname}-${local.env}-public-rt-${count.index + 1}"
   }
+  depends_on = [aws_internet_gateway.main, aws_subnet.public]
 }
 
-resource "aws_route_table_association" "public_1" {
-  subnet_id      = aws_subnet.public_1.id
-  route_table_id = aws_route_table.public.id
-}
-
-resource "aws_route_table_association" "public_2" {
-  subnet_id      = aws_subnet.public_2.id
-  route_table_id = aws_route_table.public.id
+resource "aws_route_table_association" "public" {
+  count = length(var.public_subnets)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public[count.index].id
+  depends_on = [aws_route_table.public, aws_subnet.public]
 }
 
 # Private Route Tables
 resource "aws_route_table" "private" {
+  count = length(var.private_subnets)
   vpc_id = aws_vpc.main.id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main.id
+    nat_gateway_id = aws_nat_gateway.main[count.index].id
   }
 
   tags = {
-    Name = "aziz-soudani-${terraform.workspace}-private-rt"
+    Name = "${var.fullname}-${local.env}-private-rt-${count.index + 1}"
   }
+  depends_on = [aws_nat_gateway.main, aws_subnet.private]
 }
 
-resource "aws_route_table_association" "private_1" {
-  subnet_id      = aws_subnet.private_1.id
-  route_table_id = aws_route_table.private.id
+resource "aws_route_table_association" "private" {
+  count = length(var.private_subnets)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private[count.index].id
+  depends_on = [aws_route_table.private, aws_subnet.private]
 }
 
-resource "aws_route_table_association" "private_2" {
-  subnet_id      = aws_subnet.private_2.id
-  route_table_id = aws_route_table.private.id
-}
 
 # Public Security Group 
 resource "aws_security_group" "public" {
@@ -193,4 +179,55 @@ resource "aws_security_group" "private" {
   tags = {
     Name = "private-sg"
   }
+}
+
+# Security Groups
+resource "aws_security_group" "public_sg" {
+  name        = "public-sg"
+  description = "Allow HTTP and SSH"
+  vpc_id      = aws_vpc.vpc.id 
+
+  tags = {
+    Name = "public-sg"
+  }
+  depends_on = [ aws_subnet.public ]
+}
+
+resource "aws_security_group" "private_sg" {
+  name        = "private-sg"
+  description = "Allow private access"
+  vpc_id      = aws_vpc.vpc.id  
+  tags = {
+    Name = "private-sg"
+  }
+  depends_on = [ aws_subnet.private ]
+}
+
+# Rules
+resource "aws_security_group_rule" "public_sg_rules" {
+  for_each = local.public_subnet_sg_inbound_rules
+
+  security_group_id        = aws_security_group.public_sg.id
+  type                      = each.value.rule_type
+  protocol                  = each.value.protocol
+  from_port                 = each.value.from_port
+  to_port                   = each.value.to_port
+  cidr_blocks               = each.value.dst_cidr != "" ? [each.value.dst_cidr] : null
+  source_security_group_id  = each.value.dst_sg != "" ? aws_security_group.private_sg.id : null
+
+  depends_on = [aws_security_group.public_sg]
+}
+
+resource "aws_security_group_rule" "private_sg_rules" {
+  for_each = local.private_subnet_sg_inbound_rules
+
+  security_group_id        = aws_security_group.private_sg.id
+  type                      = each.value.rule_type
+  protocol                  = each.value.protocol
+  from_port                 = each.value.from_port
+  to_port                   = each.value.to_port
+  cidr_blocks               = each.value.dst_cidr != "" ? [each.value.dst_cidr] : null
+  source_security_group_id  = each.value.dst_sg != "" ? aws_security_group.public_sg.id : null
+
+  depends_on = [aws_security_group.private_sg]
 }
