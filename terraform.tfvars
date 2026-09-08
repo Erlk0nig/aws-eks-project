@@ -1,7 +1,7 @@
 fullname = "aziz-soudani"
 cidr_block = "10.0.0.0/16"
 tags = {
-  "project" : "azure-eks-project",
+  "project" : "aws-eks-project",
   "owner"   : "firstname-lastname"
 }
 public_subnets = [
