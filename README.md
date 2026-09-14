@@ -58,14 +58,6 @@ Security group ingress rules are declared in `sg_rules.csv` and transformed in `
 2. The cluster becomes the foundation for the tooling and application layer in the second repository.
 3. The companion repository installs the in-cluster stack, including routing, certificates, and monitoring tools.
 
-## Destroy
-
-To remove all infrastructure created by this project:
-
-```bash
-terraform destroy
-```
-
 ## Notes
 
 - This repository provisions the base platform only; it does not deploy workloads or cluster add-ons.
